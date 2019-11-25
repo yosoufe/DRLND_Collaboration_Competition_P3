@@ -310,6 +310,7 @@ class MADDPG:
         self.critic_criterion = nn.MSELoss()
         self.critic2_criterion = nn.MSELoss()
         self.device = device
+        self.other = None
         for model in [self.actor_local,
                       self.actor_target,
                       self.critic_local,
@@ -317,6 +318,9 @@ class MADDPG:
                       self.critic2_local,
                       self.critic2_target]:
             model.to(device)
+
+    def set_other_agent(self, agent):
+        self.other = agent
 
     def act(self, state, add_noise=True):
         """
@@ -352,8 +356,6 @@ class MADDPG:
              reward,
              this_next_states,
              others_next_states,
-             this_next_actions,
-             others_next_actions,
              done):
         """
         * save sample in the replay buffer
@@ -384,7 +386,7 @@ class MADDPG:
                                action=np.hstack((this_action, others_action)),
                                reward=reward,
                                next_states=np.hstack((this_next_states, others_next_states)),
-                               next_actions=np.hstack((this_next_actions, others_next_actions)),
+                               next_actions=None,
                                done=done
                                )
 
@@ -411,6 +413,11 @@ class MADDPG:
         """
         all_states = states
         this_state = states[:, 0:self.state_size]
+
+        next_actions = self.actor_local(next_states[:, 0:self.state_size])
+        next_actions = torch.cat((next_actions,
+                                  self.other.actor_local(next_states[:, self.state_size:])
+                                  ), 1).detach()
 
         # Update Critic
         value = (self.critic_target(next_states, next_actions).detach() +

@@ -24,28 +24,34 @@ class ReplayBuffer:
                                                   "action",
                                                   "reward",
                                                   "next_state",
+                                                  "next_action",
                                                   "done"])
         self.seed = random.seed(seed)
         self.batch_size = batch_size
         self.device = device
 
-    def push(self, state, action, reward, next_states, done):
+    def push(self, state, action, reward, next_states, next_actions, done):
         """
         Add an experience to the buffer.
 
         Args:
-            state: 2D numpy array in size of number of agents by number of states
-            action: 2D numpy array in size of number of agents by number of actions
-            reward: list in size of number of agents
+            state: 1D numpy array in size of number of states
+            action: 1D numpy array in size of number of actions
+            reward: float number
             next_states: same as state
-            done (boolean): list in size of number of agents
+            next_actions: same as action, can be None
+            done (boolean): boolean
 
         Returns:
             None
         """
-        for i in range(state.shape[0]):
-            ex = self.Experience(state[i, :], action[i, :], reward[i], next_states[i, :], done[i])
-            self.buffer.append(ex)
+        ex = self.Experience(state,
+                             action,
+                             reward,
+                             next_states,
+                             next_actions,
+                             done)
+        self.buffer.append(ex)
 
     def sample(self):
         """
@@ -58,15 +64,23 @@ class ReplayBuffer:
             next_state: same as state
             done (boolean): tensor in size (batch_size, number of states)
         """
-        ex = random.sample(self.buffer, k=self.batch_size)
+        if len(self) < self.batch_size:
+            ex = random.sample(self.buffer, k=len(self))
+        else:
+            ex = random.sample(self.buffer, k=self.batch_size)
 
         states = torch.from_numpy(np.vstack([e.state for e in ex if e is not None])).float().to(self.device)
         actions = torch.from_numpy(np.vstack([e.action for e in ex if e is not None])).float().to(self.device)
         rewards = torch.from_numpy(np.vstack([e.reward for e in ex if e is not None])).float().to(self.device)
         next_states = torch.from_numpy(np.vstack([e.next_state for e in ex if e is not None])).float().to(self.device)
+        next_actions_np = np.vstack([e.next_action for e in ex if e is not None])
+        if np.any(np.equal(next_actions_np, None)):
+            next_actions = None
+        else:
+            next_actions = torch.from_numpy(next_actions_np).float().to(self.device)
         dones = torch.from_numpy(np.vstack([e.done for e in ex if e is not None]).astype(np.uint8)).float().to(self.device)
 
-        return states, actions, rewards, next_states, dones
+        return states, actions, rewards, next_states, next_actions, dones
 
     def __len__(self):
         """
@@ -80,7 +94,7 @@ class ReplayBuffer:
 class OUNoise:
     """Ornstein-Uhlenbeck process."""
 
-    def __init__(self, size, seed, mu=0.0, theta=0.15, max_sigma=0.1, min_sigma=0.01, decay_period=100000):
+    def __init__(self, size, seed, mu=0.0, theta=0.15, max_sigma=0.1, min_sigma=0.01, decay_period=100000, decay_delay=0):
         """Initialize parameters and noise process."""
         self.mu = mu * np.ones(size)
         self.theta = theta
@@ -91,6 +105,7 @@ class OUNoise:
         self.seed = random.seed(seed)
         self.step = 0
         self.size = size
+        self.decay_delay = decay_delay
         self.reset()
 
     def reset(self):
@@ -102,7 +117,8 @@ class OUNoise:
         x = self.state
         dx = self.theta * (self.mu - x) + self.sigma * np.random.randn(self.size)
         self.step += 1
-        self.sigma = self.max_sigma - (self.max_sigma - self.min_sigma) * min(1.0, self.step / self.decay_period)
+        s = max(0 , self.step - self.decay_delay)
+        self.sigma = self.max_sigma - (self.max_sigma - self.min_sigma) * min(1.0, s / self.decay_period)
         self.state = x + dx
         return self.state
 
@@ -128,8 +144,6 @@ class PlotTool:
         self.fig = plt.figure(figsize=(8, 16))
         self.axRews = self.fig.add_subplot(2, 1, 1)
         self.axAve = self.fig.add_subplot(2, 1, 2)
-        self.axRews.autoscale()
-        self.axAve.autoscale()
         self.actions = None
         self.desc = desc
         if number_of_actions:

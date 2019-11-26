@@ -36,8 +36,8 @@ I have used
 for this project. 
 
 Interestingly 
-[my implementation for the second project](https://github.com/yosoufe/DRLND_Continuous_Control_P2)
-without almost any change solved the environment. I would not describe the DDPG again here.
+[my implementation for the second project, DDPG](https://github.com/yosoufe/DRLND_Continuous_Control_P2)
+without almost any change solved this multi agent environment. I would not describe the DDPG again here.
 You can find my report about DDPG in 
 [the other repo](https://github.com/yosoufe/DRLND_Continuous_Control_P2/blob/master/report.md).
 I just only did some small updates to save the model in a cleaner fashion. In  

@@ -322,7 +322,8 @@ solve to average rewards of **0.5**.
 #### MADDPG
 
 It solved the environment in **460** epochs. Remember that in each epoch two sets of Neural Networks
-are being updated. So the computation is heavier in MADDPG rather than simple DDPG.
+are being updated and also Critic Network is larger in MADDPG. So the computation is heavier in MADDPG 
+rather than simple DDPG.
 
 <img src="imgs_vids/MADDPG_Training_e460.png" alt="drawing" height="900"/>
 

@@ -486,8 +486,8 @@ class MADDPG:
 
     def load_agent(self, file_name, is_exact_path=False):
         i = 0
-        path = None
-        while True:
+        path = file_name
+        while not is_exact_path:
             if os.path.isfile(f'{file_name}_{i}.pth'):
                 path = f'{file_name}_{i}.pth'
                 i += 1

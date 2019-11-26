@@ -2,7 +2,7 @@
 
 - [Introduction](#Introduction)  
 - [Learning Algorithm](#LearningAlgorithm)  
-  - [Multi Agent Deep Deterministic Policy Gradients (**MADDPG**)](#MADDPG)
+  - [Multi Agent Deep Deterministic Policy Gradients (**MADDPG**)](#MADDPG_H)
   - [Models](#Models) 
     - [Actor or Policy](#ActorModel)
     - [Critic or Q Function](#CriticModel)
@@ -48,7 +48,7 @@ in the [Results](#Results) section.
 
 I will describe the MADDPG in the following.
 
-<a name="MADDPG"/>
+<a name="MADDPG_H"/>
 
 ### Deep Deterministic Policy Gradients (**DDPG**)
 

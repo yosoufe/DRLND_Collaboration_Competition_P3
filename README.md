@@ -1,5 +1,5 @@
-# DRLND_Continuous_Control_P2
-Project 2, Continuous Control, Deep Reinforcement Learning ND, Udacity
+# DRLND Collaboration and Competition, P3
+Project 3, Collaboration and Competition, Deep Reinforcement Learning ND, Udacity
 
 This is my submission to the 3rd project of [Deep Reinforcement Learning 
 Nanodegree by Udacity](https://www.udacity.com/course/deep-reinforcement-learning-nanodegree--nd893).
@@ -15,15 +15,16 @@ of [Unity ML-Agents Toolkit](https://unity3d.com/machine-learning). You can
 find the links to download the environment from 
 [readme file in Udacity repo](https://github.com/udacity/deep-reinforcement-learning/tree/master/p3_collab-compet).
 
-* The environment has twenty independent agents.
-* Twenty Double-jointed arm which can move to target locations.
+* The environment has two agents which are interacting with each other in form of tennis.
 * Rewards:
-    * +0.1 Each step agent's hand is in goal location.
-* Observation: The observation for each agent is a vector of 33 elements containing 
-the position, rotation, velocity and angular velocity of two arms and target location.
-* Actions: Continuous actions of size 4. Two torque values for each joint.
-* The problem is considered to be solved when the agent is able to receive 
-an average reward (over 100 episodes, and over all 20 agents) of at least +30.
+    * Each agent that hits the ball over the net receives +0.1.
+    * Each agent that lets the ball hit the ground or out of the bounds receives -0.01.
+* Observation: The observation for each agent is a vector of 8 elements containing 
+the position and velocity of the ball and the racket.
+* Actions: Continuous actions of size 2 in range of [-1,1]. One for back and forthe, the other for jumping.
+* Although the Udacity's project page says that the problem is considered to be solved when the agent is able to receive 
+an average of maximum of reward over 100 episodes of at least +0.5. I consider the project solved when the average of 
+all rewards is at least +0.5 which is a bit harder.
 
 ### Getting Started:
 
@@ -43,32 +44,33 @@ pip install .
 
 #### Clone this Repo:
 ```bash
-git clone https://github.com/yosoufe/DRLND_Continuous_Control_P2.git
+git clone https://github.com/yosoufe/DRLND_Collaboration_Competition_P3.git
 
 # or with ssh setup:
-git clone git@github.com:yosoufe/DRLND_Continuous_Control_P2.git
+git clone git@github.com:yosoufe/DRLND_Collaboration_Competition_P3.git
 ```
 
 #### Prepare the Environment:
 You need to download the environment from the links
-[here](https://github.com/udacity/deep-reinforcement-learning/tree/master/p2_continuous-control#getting-started)
+[here](https://github.com/udacity/deep-reinforcement-learning/tree/master/p3_collab-compet#getting-started)
 according to your OS and pass the path of the environment in the following jupyter notebooks. 
-I am using `Version 2: Twenty (20) Agents` environment.
 
 #### How to train:
-`Train Models DDPG.ipynb` is the notebook that does the training and save the trained model.
+`Train Models DDPG.ipynb` and `Train Models MADDPG.ipynb` are the notebook that does the training 
+and save the trained model using two algorithm `DDPA` and `MADDPG`.
 You need to replace the pass of the simulator in one of the cells like bellow to point to where you 
 placed your simulator:
 ```python
-env = UnityEnvironment(file_name="../Reacher_Linux_2/Reacher.x86_64", no_graphics=True)
+env = UnityEnvironment(file_name="../Tennis_Linux/Tennis.x86_64", no_graphics=True)
 ``` 
 
 #### How to run the trained model:
-`Demo Trained DDPG Model.ipynb` is loading the agent and run it in the environment with graphics.
+`Demo Trained DDPG Model.ipynb` and `Demo Trained MADDPG.ipynb` are loading the agents 
+and run it in the environment with graphics.
 You need to replace the pass of the simulator in one of the cells like bellow to point to where you 
 placed your simulator:
 ```python
-env = UnityEnvironment(file_name="../Reacher_Linux_2/Reacher.x86_64", no_graphics=False)
+env = UnityEnvironment(file_name="../Tennis_Linux/Tennis.x86_64", no_graphics=False)
 ``` 
 
 ### Report:

@@ -150,6 +150,9 @@ other agent's state ->BatchNorm->Linear--\                         /
 other agent's action------------>Linear--/
 ```
 
+The Critic is larger than DDPG because its inputs is larger than DDPG and this would need a more complex
+model to learn tasks.
+
 The input of model is the states and actions of all agents and it outputs the 
 <img align="middle" src="https://latex.codecogs.com/svg.latex?\Large&space;Q(s_1,s_2,a_1,a_2)"/>.
 ```python
@@ -318,14 +321,14 @@ solve to average rewards of **0.5**.
 
 #### MADDPG
 
-It solved it in **460** epochs. Remember that in each epoch two sets of Neural Networks
+It solved the environment in **460** epochs. Remember that in each epoch two sets of Neural Networks
 are being updated. So the computation is heavier in MADDPG rather than simple DDPG.
 
 <img src="imgs_vids/MADDPG_Training_e460.png" alt="drawing" height="900"/>
 
 #### DDPG
 
-It solved it in aroung **1100** epochs. Remember that in each epoch only one set of Neural Networks
+It solved the environment in around **1100** epochs. Remember that in each epoch only one set of Neural Networks
 are being updated. So the computation is less in DDPG rather than MADDPG.
 
 <img src="imgs_vids/DDPGTraining.png" alt="drawing" height="900"/>

@@ -2,8 +2,7 @@
 
 - [Introduction](#Introduction)  
 - [Learning Algorithm](#LearningAlgorithm)  
-  - [Multi Agent Deep Deterministic Policy Gradients (**MADDPG**)](#MADDPG)  
-  - [Pseudocode](#Pseudocode)
+  - [Multi Agent Deep Deterministic Policy Gradients (**MADDPG**)](#MADDPG)
   - [Models](#Models) 
     - [Actor or Policy](#ActorModel)
     - [Critic or Q Function](#CriticModel)
@@ -88,19 +87,21 @@ action. Which is an approximate maximizer to calculate new target value for trai
 **The main idea** in the paper is that the critic of each agent has access to the states and actions
 of all other agents. But the actor has only access to the states of itself and not others. This way
 during the training, each agent uses the information from other agents to evaluate its policy but that is 
-not needed during the inference and agent uses only its own states to decide on the action.
+not needed during the inference and agent uses only its own states to decide on the action. This is 
+shown in [the paper](https://arxiv.org/abs/1706.02275) by the following figure.
 
-![MADDPGAlgo](imgs_vids/MADDPGAlgo.png width=600)
+<img src="imgs_vids/MADDPGAlgo.png" width="600" />
 
 <a name="Models"/>
 
 ### Models
-Neural Network Models are defined in [models.py](models.py)
+Neural Network Models are defined in [models.py](models.py).
 
 <a name="ActorModel"/>
 
 #### Actor or Policy
 Actor or Policy model consists of:
+* I used exactly the same model architecture as DDPG for actor.
 * Batch normalization layer at the state inputs. The state values can have very large and small values in different 
 dimensions which batch norm can speed up the learning. 
 * Multiple linear layers
@@ -111,14 +112,14 @@ only zero and positive values. I did this mistake and spent some time to find th
 The input of model is the states and outputs the best believed actions.
 ```python
 class Actor(nn.Module):
-    def __init__(self, state_size, action_size, seed):
+    def __init__(self, state_size, action_size, seed, layer_sizes=[32, 64, 64]):
         super(Actor, self).__init__()
         self.seed = torch.manual_seed(seed)
         self.bn = nn.BatchNorm1d(state_size)
-        self.fc1 = nn.Linear(state_size, 32)
-        self.fc2 = nn.Linear(32, 64)
-        self.fc3 = nn.Linear(64, 64)
-        self.fc4 = nn.Linear(64, action_size)
+        self.fc1 = nn.Linear(state_size, layer_sizes[0])
+        self.fc2 = nn.Linear(layer_sizes[0], layer_sizes[1])
+        self.fc3 = nn.Linear(layer_sizes[1], layer_sizes[2])
+        self.fc4 = nn.Linear(layer_sizes[2], action_size)
 
     def forward(self, state):
         x = state
@@ -133,34 +134,83 @@ class Actor(nn.Module):
 
 #### Critic or Q Function
 Critic or Q Function model consists of:
+* Batch Normaliztion
 * Multiple linear layers
 * And no (or linear) activation at last layer.
 
-The input of model is the states and action and it outputs the 
-<img align="middle" src="https://latex.codecogs.com/svg.latex?\Large&space;Q(s,a)"/>.
+The only differnce here is that the critic's input is the states and actions of all
+agents rather than one agent. The network is also a bit different like this:
+```
+this agent's state  ->BatchNorm->Linear--\
+                                        Concatenate ---> Linear ->\
+this agent's action ------------>Linear--/                         \
+                                                            Concatenate --> Linear -> Value
+other agent's state ->BatchNorm->Linear--\                         /
+                                        Concatenate ---> Linear ->/
+other agent's action------------>Linear--/
+```
+
+The input of model is the states and actions of all agents and it outputs the 
+<img align="middle" src="https://latex.codecogs.com/svg.latex?\Large&space;Q(s_1,s_2,a_1,a_2)"/>.
 ```python
-class Critic(nn.Module):
-    def __init__(self, state_size, action_size, seed):
-        super(Critic, self).__init__()
+class MACritic(nn.Module):
+    def __init__(self,
+                 state_size,
+                 other_states,
+                 action_size,
+                 other_actions,
+                 seed,
+                 layer_sizes=[64, 16, 256, 32]):
+        self.state_size=state_size
+        self.other_states=other_states
+        self.action_size=action_size
+        self.other_actions=other_actions
+
+        super(MACritic, self).__init__()
         self.seed = torch.manual_seed(seed)
-        self.fcState = nn.Linear(state_size, 32)
-        self.fcAction = nn.Linear(action_size, 16)
-        self.fc2 = nn.Linear(32+16, 128)
-        self.fc3 = nn.Linear(128, 32)
-        self.fc4 = nn.Linear(32, 1)
+        self.bn_s = nn.BatchNorm1d(state_size)
+        self.bn_so = nn.BatchNorm1d(other_states)
+        self.fcState = nn.Linear(state_size, layer_sizes[0])
+        self.fcAction = nn.Linear(action_size, layer_sizes[1])
+
+        self.fcState_o = nn.Linear(other_states, layer_sizes[0])
+        self.fcAction_o = nn.Linear(other_actions, layer_sizes[1])
+
+        self.fc2 = nn.Linear(layer_sizes[0] + layer_sizes[1], layer_sizes[2])
+        self.fc2_o = nn.Linear(layer_sizes[0] + layer_sizes[1], layer_sizes[2])
+        self.fc3 = nn.Linear(layer_sizes[2]*2, layer_sizes[3])
+        self.fc4 = nn.Linear(layer_sizes[3], 1)
 
     def forward(self, state, action):
-        xState = F.relu(self.fcState(state))
-        xAction = F.relu(self.fcAction(action))
-        x = torch.cat((xState, xAction), 1)
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        return self.fc4(x)
+        this_state = state[:, :self.state_size]
+        other_state = state[:, self.state_size:]
+        this_action = action[:, :self.action_size]
+        other_action = action[:, self.action_size:]
+
+
+        this_state = self.bn_s(this_state)
+        other_state = self.bn_so(other_state)
+
+        this_state = F.relu(self.fcState(this_state))
+        this_action = F.relu(self.fcAction(this_action))
+        other_state = F.relu(self.fcState_o(other_state))
+        other_action = F.relu(self.fcAction_o(other_action))
+
+        this_v = F.relu(self.fc2(torch.cat((this_state, this_action), 1)))
+        other_v = F.relu(self.fc2_o(torch.cat((other_state, other_action), 1)))
+
+        v = F.relu(self.fc3(torch.cat((this_v, other_v), 1)))
+        return self.fc4(v)
 ```
 
 <a name="Update"/>
 
 ### Networks Update
+
+It is very similar to DDPG. My Equations in this sections is only for first agent. 
+Similar equations applies to the second agent. Notations here are a bit different. `prime` means 
+for the nect time stamp and the subscript is the agent's number (index) and the rest are
+according to the paper.
 
 <a name="UpdateCritic"/>
 
@@ -168,22 +218,22 @@ class Critic(nn.Module):
 First we calculate the target value for Q function using target critic network 
 <img align="middle" src="https://latex.codecogs.com/svg.latex?\Large&space;Q'"/> as follow
 
-<img align="middle" src="https://latex.codecogs.com/svg.latex?\Large&space;y_i=r_i+\gamma%20Q'(s_{i+1},\mu'(s_{i+1}|\theta^{\mu'})|\theta^{Q'})"/>
+<img align="middle" src="https://latex.codecogs.com/svg.latex?\Large&space;y=r_i+\gamma%20Q^{\mu'}_i(\pmb{x},a'_1,a'_2)|_{a'_j=\pmb{\mu}'_j(o_i)}"/>
 
 Then we calculate the loss 
 
-<img align="middle" src="https://latex.codecogs.com/svg.latex?\Large&space;Loss=\dfrac{1}{N}\operatorname*{\Sigma}_{i}{(y_i-Q(s_i,a_i|\theta^Q))^2}"/>
+<img align="middle" src="https://latex.codecogs.com/svg.latex?\Large&space;Loss=\dfrac{1}{N}\operatorname*{\Sigma}_{i}{(y_i-Q^{\mu'}_i(\pmb{x},a_1,a_2))^2}"/>
 
 <a name="UpdateActor"/>
 
 #### Actor
 For actor, the objective is to maximize the expected return
 
-<img src="https://latex.codecogs.com/svg.latex?\Large&space;J(\theta)=\mathbb{E}\[Q(s,a)|_{s=s_{t},a_t=\mu(s_t)}\]"/>.
+<img src="https://latex.codecogs.com/svg.latex?\Large&space;J(\theta)=\mathbb{E}\[Q^{\mu'}_i(\pmb{x},a_1,a_2)\]"/>.
 
 We need to calculate the objective's gradient using chain rule
 
-<img src="https://latex.codecogs.com/svg.latex?\Large&space;\Delta_{\theta^{\mu}}\approx\Delta_a%20Q(s,a)\Delta_{\theta^{\mu}}\mu(s|\theta^\mu)"/>.
+<img src="https://latex.codecogs.com/svg.latex?\Large&space;\triangledown_{\theta^{\mu}}\approx\triangledown_a%20Q^{\mu'}_i(\pmb{x},a_1,a_2)\triangledown_{\theta^{\mu}}\mu'(s|\theta^\mu')"/>.
 
 <a name="SoftUpdate"/>
 
@@ -225,18 +275,28 @@ local optima rarely. The corect hyperparameters are also depending on the networ
 Here are the chosen parameters:
 
 ```python
-agent = DDPG_Agent(state_size=state_size, 
+agents = []
+batch_size = 1024
+shared_buffer = ReplayBuffer(batch_size=batch_size, buffer_size=300 * 1000, seed=1, device=device)
+
+for _ in range(2):
+    agent = MADDPG(state_size=state_size, 
                    action_size=action_size, 
                    actor_model=Actor,
-                   critic_model=Critic,
+                   critic_model=MACritic,
                    device=device,
-                   num_agents= num_agents, 
+                   num_agents= 1, # number of non-interacting agents,
+                   num_interacting_agents = 2,
                    seed=1,
-                   tau=3e-1,
-                   batch_size=2048,
+                   tau=1e-1,
+                   batch_size=batch_size,
                    discount_factor = 0.99,
                    actor_learning_rate=1e-4,
-                   critic_learning_rate=1e-3)
+                   critic_learning_rate=1e-3,
+                   replayBuffer= shared_buffer) #shared_buffer
+    agents.append(agent)
+agents[0].set_other_agent(agents[1])
+agents[1].set_other_agent(agents[0])
 ```
 
 I used two critic networks with the same architecture but different initial parameters
@@ -247,37 +307,48 @@ more stable convergence.
 
 ## Results
 
+As I mentioned before I used both **MADDPG** and **DDPG**.
+
 <a name="graph"/>
 
 ### Reward vs Epoch graph
-In the following image, the top graph is showing the rewards of each agent and the second 
+In the following images, the top graph is showing the rewards of each agent and the second 
 graph is showing the average over all agents. I set the criteria to consider the environment as 
-solve to average rewards of **35** and this is achieved in **140 epochs**
+solve to average rewards of **0.5**.
 
-<img src="imgs_vids/Rewards.png" alt="drawing" height="900"/>
+#### MADDPG
+
+It solved it in **460** epochs. Remember that in each epoch two sets of Neural Networks
+are being updated. So the computation is heavier in MADDPG rather than simple DDPG.
+
+<img src="imgs_vids/MADDPG_Training_e460.png" alt="drawing" height="900"/>
+
+#### DDPG
+
+It solved it in aroung **1100** epochs. Remember that in each epoch only one set of Neural Networks
+are being updated. So the computation is less in DDPG rather than MADDPG.
+
+<img src="imgs_vids/DDPGTraining.png" alt="drawing" height="900"/>
 
 <a name="Videos"/>
 
 ### Videos
 Here are some videos of my trained agent:
-* with live cumulative rewards: https://youtu.be/ZCwCc8ClnbA
-* without cumulative rewards: https://youtu.be/K_hSIYBih-c
+* MADDPG: https://youtu.be/htyvRehoYIM
+* DDPG: https://youtu.be/zPLCWftleTk
 
 And the gif version of the videos, You may click on them to go to High Quality Version on 
 Youtube, Or may check the `imgs_vids` folder of the repo:
 
-[![Trained Agent](imgs_vids/ddpg_with_rewards.gif "My Trained Agent, Click for Youtube Video")](https://youtu.be/ZCwCc8ClnbA)
-[![Trained Agent](imgs_vids/ddpg_full_screen.gif "My Trained Agent, Click for Youtube Video")](https://youtu.be/K_hSIYBih-c)
+[![Trained MADDPG Agent](imgs_vids/MADDPG.gif "My Trained NADDOG Agent, Click for Youtube Video")](https://youtu.be/htyvRehoYIM)
+[![Trained DDPG Agent](imgs_vids/DDPG.gif "My Trained DDPG Agent, Click for Youtube Video")](https://youtu.be/zPLCWftleTk)
 
 <a name="FutureIdeas"/>
 
 # Future Ideas
-* Using different algorithm like PPO, A2C, A3C or TD3.
 * Using different network models like recurrent networks.
 
 <a name="References"/>
 
 # References
-* [Continuous control with deep reinforcement learning](https://arxiv.org/abs/1509.02971)
-* [Deep Deterministic Policy Gradient, OpenAI Spinning Up](https://spinningup.openai.com/en/latest/algorithms/ddpg.html)
-* [Deep Deterministic Policy Gradients Explained, Medium Article](https://towardsdatascience.com/deep-deterministic-policy-gradients-explained-2d94655a9b7b)
+* [Multi-Agent Actor-Critic for Mixed Cooperative-Competitive Environments](https://arxiv.org/abs/1706.02275)

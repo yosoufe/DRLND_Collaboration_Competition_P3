@@ -343,7 +343,7 @@ Here are some videos of my trained agent:
 And the gif version of the videos, You may click on them to go to High Quality Version on 
 Youtube, Or may check the `imgs_vids` folder of the repo:
 
-[![Trained MADDPG Agent](imgs_vids/MADDPG.gif "My Trained NADDOG Agent, Click for Youtube Video")](https://youtu.be/htyvRehoYIM)
+[![Trained MADDPG Agent](imgs_vids/MADDPG.gif "My Trained MADDPG Agent, Click for Youtube Video")](https://youtu.be/htyvRehoYIM)
 [![Trained DDPG Agent](imgs_vids/DDPG.gif "My Trained DDPG Agent, Click for Youtube Video")](https://youtu.be/zPLCWftleTk)
 
 <a name="FutureIdeas"/>

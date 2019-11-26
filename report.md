@@ -87,12 +87,10 @@ action. Which is an approximate maximizer to calculate new target value for trai
 
 **The main idea** in the paper is that the critic of each agent has access to the states and actions
 of all other agents. But the actor has only access to the states of itself and not others. This way
-during the t
+during the training, each agent uses the information from other agents to evaluate its policy but that is 
+not needed during the inference and agent uses only its own states to decide on the action.
 
-<a name="Pseudocode"/>
-
-### Pseudocode 
-![Pseudocode](imgs_vids/pseudocode.png "Pseudocode taken from the paper \"Continuous control with deep reinforcement learning\"")
+![MADDPGAlgo](imgs_vids/MADDPGAlgo.png width=600)
 
 <a name="Models"/>
 

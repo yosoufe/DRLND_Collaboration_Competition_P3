@@ -56,7 +56,7 @@ class DDPG_Agent:
         self.batch_size = batch_size
         self.replayBuffer = ReplayBuffer(batch_size=batch_size, buffer_size=300 * 1000, seed=seed, device=device)
         self.num_agents = num_agents
-        self.noise_process = OUNoise(action_size * num_agents, seed, max_sigma=0.3, min_sigma=0.001,
+        self.noise_process = OUNoise(action_size * num_agents, seed, max_sigma=0.1, min_sigma=0.001,
                                      decay_period=300*300)
         self.discount_factor = discount_factor
         self.actor_opt = optim.Adam(self.actor_local.parameters(), lr=actor_learning_rate)
@@ -214,8 +214,8 @@ class DDPG_Agent:
 
     def load_agent(self, file_name, is_exact_path=False):
         i = 0
-        path = None
-        while True:
+        path = file_name
+        while not is_exact_path:
             if os.path.isfile(f'{file_name}_{i}.pth'):
                 path = f'{file_name}_{i}.pth'
                 i += 1
